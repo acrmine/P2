@@ -25,7 +25,7 @@ class MCTSNode:
         This method provides a string representing the node. Any time str(node) is used, this method is called.
         """
         return ' '.join(["[", str(self.parent_action),
-                         "Win rate:", "{0:.0f}%".format(100 * self.wins / self.visits),
+                         "Win rate:", "{0:.0f}%".format(100 * self.wins / self.visits if self.visits > 0 else 1),
                          "Visits:", str(self.visits),  "]"])
 
     def tree_to_string(self, horizon=1, indent=0):

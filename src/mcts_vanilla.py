@@ -26,8 +26,7 @@ def traverse_nodes(node: MCTSNode, board: Board, state, bot_identity: int):
     """
     if len(node.child_nodes) == 0:
         return node, state
-    # elif len(node.child_nodes) == 1:
-    #     return node.child_nodes.values()[0], board.next_state(state, node.parent_action)
+
     child_queue = PriorityQueue()
     for c_node in node.child_nodes.values():
         opponent = (board.current_player(state) != bot_identity)
@@ -60,8 +59,8 @@ def expand_leaf(node: MCTSNode, board: Board, state):
         state: The state associated with that node
 
     """
-    new_node = node
-    new_state = state
+    new_node = None
+    new_state = None
     if not board.is_ended(state) and len(node.untried_actions) > 0:
         new_action = random.choice(node.untried_actions)
         node.untried_actions.remove(new_action)
@@ -69,6 +68,8 @@ def expand_leaf(node: MCTSNode, board: Board, state):
         new_legal_actions = board.legal_actions(new_state)
         new_node = MCTSNode(node, new_action, new_legal_actions)
         node.child_nodes.update({new_action: new_node})
+    else:
+        return node, state
     return new_node, new_state
 
 
@@ -170,12 +171,13 @@ def think(board: Board, current_state):
         # ...
         node, state = traverse_nodes(node, board, state, bot_identity)
         node, state = expand_leaf(node, board, state)
-
+        print(root_node.tree_to_string())
         rollout_state = rollout(board, state)
         win = is_win(board, rollout_state, bot_identity)
         backpropagate(node, win)
 
-    print(len(root_node.child_nodes))
+    # print(root_node.tree_to_string())
+    # print(len(root_node.child_nodes))
 
     # Return an action, typically the most frequently used action (from the root) or the action with the best
     # estimated win rate.
