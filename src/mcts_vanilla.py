@@ -1,7 +1,8 @@
 
 from mcts_node import MCTSNode
 from p2_t3 import Board
-from random import choice
+from queue import PriorityQueue
+import random
 import math
 
 num_nodes = 100
@@ -23,27 +24,27 @@ def traverse_nodes(node: MCTSNode, board: Board, state, bot_identity: int):
         state: The state associated with that node
 
     """
-    curr_node = node
-    while len(curr_node.child_nodes) != 0:
-        best_weight = (0, None)
-        best_expandable = (0, None)
-        for c_node in curr_node.child_nodes.values():
-            opponent = (board.current_player(state) != bot_identity)
-            val = ucb(c_node, opponent)
-            if val > best_expandable[0] and len(c_node.untried_actions) != 0:
-                best_expandable = (val, c_node)
-            if val > best_weight[0]:
-                best_weight = (val, c_node)
-        if best_expandable[1] is not None and len(best_expandable[1].untried_actions) != 0:
-            curr_node = best_expandable[1]
-            state = board.next_state(state, curr_node.parent_action)
-        elif best_weight[1] is not None:
-            curr_node = best_weight[1]
-            state = board.next_state(state, curr_node.parent_action)
-        else:
+    if len(node.child_nodes) == 0:
+        return node, state
+    # elif len(node.child_nodes) == 1:
+    #     return node.child_nodes.values()[0], board.next_state(state, node.parent_action)
+    child_queue = PriorityQueue()
+    for c_node in node.child_nodes.values():
+        opponent = (board.current_player(state) != bot_identity)
+        val = 0 - ucb(c_node, opponent)
+        child_queue.put((val, c_node))
+
+    co_node = None
+    co_state = None
+    while not child_queue.empty():
+        ct_node = child_queue.get()
+        co_node = ct_node[1]
+        co_state = board.next_state(state, co_node.parent_action)
+        co_node, co_state = traverse_nodes(co_node, board, co_state, bot_identity)
+        if len(co_node.untried_actions) > 0 and not board.is_ended(co_state):
             break
 
-    return curr_node, state
+    return co_node, co_state
 
 
 def expand_leaf(node: MCTSNode, board: Board, state):
@@ -59,14 +60,15 @@ def expand_leaf(node: MCTSNode, board: Board, state):
         state: The state associated with that node
 
     """
-    new_node = None
-    new_state = None
-    if (not board.is_ended(state)) and len(node.untried_actions) > 0:
-        new_action = choice(node.untried_actions)
+    new_node = node
+    new_state = state
+    if not board.is_ended(state) and len(node.untried_actions) > 0:
+        new_action = random.choice(node.untried_actions)
         node.untried_actions.remove(new_action)
         new_state = board.next_state(state, new_action)
-        new_legal_actions = board.legal_actions(new_action)
+        new_legal_actions = board.legal_actions(new_state)
         new_node = MCTSNode(node, new_action, new_legal_actions)
+        node.child_nodes.update({new_action: new_node})
     return new_node, new_state
 
 
@@ -82,8 +84,11 @@ def rollout(board: Board, state):
 
     """
     while not board.is_ended(state):
-        new_action = choice(board.legal_actions(state))
-        state = board.next_state(state, new_action)
+        new_action = random.choice(board.legal_actions(state))
+        next_state = board.next_state(state, new_action)
+        if next_state is None:
+            break
+        state = next_state
     return state
 
 
@@ -112,9 +117,6 @@ def ucb(node: MCTSNode, is_opponent: bool):
     Returns:
         The value of the UCB function for the given node
     """
-    if node is None:
-        return 0
-
     ucb_val = node.wins / node.visits
     if is_opponent:
         ucb_val = 1 - ucb_val
@@ -134,8 +136,8 @@ def get_best_action(root_node: MCTSNode):
     """
     best_pick = (0, None)
     for c_node in root_node.child_nodes.values():
-        val = ucb(c_node, False)
-        if val > best_pick[0]:
+        val = c_node.wins / c_node.visits
+        if val >= best_pick[0]:
             best_pick = (val, c_node)
 
     return best_pick[1].parent_action
@@ -168,13 +170,16 @@ def think(board: Board, current_state):
         # ...
         node, state = traverse_nodes(node, board, state, bot_identity)
         node, state = expand_leaf(node, board, state)
+
         rollout_state = rollout(board, state)
-        win = is_win(board, state, bot_identity)
+        win = is_win(board, rollout_state, bot_identity)
         backpropagate(node, win)
+
+    print(len(root_node.child_nodes))
 
     # Return an action, typically the most frequently used action (from the root) or the action with the best
     # estimated win rate.
     best_action = get_best_action(root_node)
-    
-    print(f"Action chosen: {best_action}")
+
+    # print(f"Action chosen: {best_action}")
     return best_action
