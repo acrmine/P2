@@ -5,7 +5,7 @@ from queue import PriorityQueue
 import random
 import math
 
-num_nodes = 100
+num_nodes = 1000
 explore_faction = 2.
 
 def traverse_nodes(node: MCTSNode, board: Board, state, bot_identity: int):
@@ -24,26 +24,21 @@ def traverse_nodes(node: MCTSNode, board: Board, state, bot_identity: int):
         state: The state associated with that node
 
     """
-    if len(node.child_nodes) == 0:
+    if len(node.untried_actions) > 0:
         return node, state
 
-    child_queue = PriorityQueue()
+    best_node = (0, None)
     for c_node in node.child_nodes.values():
         opponent = (board.current_player(state) != bot_identity)
-        val = 0 - ucb(c_node, opponent)
-        child_queue.put((val, c_node))
+        val = ucb(c_node, opponent)
+        if val >= best_node[0]:
+            best_node = (val, c_node)
 
-    co_node = None
-    co_state = None
-    while not child_queue.empty():
-        ct_node = child_queue.get()
-        co_node = ct_node[1]
-        co_state = board.next_state(state, co_node.parent_action)
-        co_node, co_state = traverse_nodes(co_node, board, co_state, bot_identity)
-        if len(co_node.untried_actions) > 0 and not board.is_ended(co_state):
-            break
+    if best_node[1] is not None:
+        best_state = board.next_state(state, best_node[1].parent_action)
+        return traverse_nodes(best_node[1], board, best_state, bot_identity)
 
-    return co_node, co_state
+    return node, state
 
 
 def expand_leaf(node: MCTSNode, board: Board, state):
@@ -59,8 +54,6 @@ def expand_leaf(node: MCTSNode, board: Board, state):
         state: The state associated with that node
 
     """
-    new_node = None
-    new_state = None
     if not board.is_ended(state) and len(node.untried_actions) > 0:
         new_action = random.choice(node.untried_actions)
         node.untried_actions.remove(new_action)
@@ -171,13 +164,10 @@ def think(board: Board, current_state):
         # ...
         node, state = traverse_nodes(node, board, state, bot_identity)
         node, state = expand_leaf(node, board, state)
-        print(root_node.tree_to_string())
+
         rollout_state = rollout(board, state)
         win = is_win(board, rollout_state, bot_identity)
         backpropagate(node, win)
-
-    # print(root_node.tree_to_string())
-    # print(len(root_node.child_nodes))
 
     # Return an action, typically the most frequently used action (from the root) or the action with the best
     # estimated win rate.
