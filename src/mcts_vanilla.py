@@ -1,11 +1,9 @@
-
 from mcts_node import MCTSNode
 from p2_t3 import Board
-from queue import PriorityQueue
 import random
 import math
 
-num_nodes = 1000
+num_nodes = 100
 explore_faction = 2.
 
 def traverse_nodes(node: MCTSNode, board: Board, state, bot_identity: int):
@@ -173,5 +171,5 @@ def think(board: Board, current_state):
     # estimated win rate.
     best_action = get_best_action(root_node)
 
-    # print(f"Action chosen: {best_action}")
+    print(f"(Bot {bot_identity}(vanilla)) Action chosen: {best_action}")
     return best_action
