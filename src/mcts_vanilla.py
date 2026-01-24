@@ -3,7 +3,7 @@ from p2_t3 import Board
 import random
 import math
 
-num_nodes = 100
+num_nodes = 900
 explore_faction = 2.
 
 def traverse_nodes(node: MCTSNode, board: Board, state, bot_identity: int):

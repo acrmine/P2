@@ -3,8 +3,10 @@ from p2_t3 import Board
 import random
 import math
 
-num_nodes = 100
+num_nodes = 900
 explore_faction = 2.
+
+last_good_replies = {}
 
 def traverse_nodes(node: MCTSNode, board: Board, state, bot_identity: int):
     """ Traverses the tree until the end criterion are met.
@@ -64,14 +66,13 @@ def expand_leaf(node: MCTSNode, board: Board, state):
     return new_node, new_state
 
 
-def rollout(board: Board, state, bot_identity: int, last_good_replies):
+def rollout(board: Board, state, bot_identity: int):
     """ Given the state of the game, the rollout plays out the remainder randomly.
 
     Args:
         board:  The game setup.
         state:  The state of the game.
         bot_identity: Integer representing the bot's identity (1 or 2).
-        last_good_replies: Dictionary of previous moves that resulted in successful wins
 
     Returns:
         state: The terminal game state
@@ -80,9 +81,8 @@ def rollout(board: Board, state, bot_identity: int, last_good_replies):
     action_used = []
     prev_action = None
     while not board.is_ended(state):
-        prev_action_lookup = (prev_action, board.current_player(state))
-        if prev_action is not None and prev_action_lookup in last_good_replies:
-            new_action = last_good_replies[prev_action_lookup]
+        if prev_action is not None and prev_action in last_good_replies:
+            new_action = last_good_replies[prev_action]
             if new_action not in board.legal_actions(state):
                 new_action = random.choice(board.legal_actions(state))
         else:
@@ -91,7 +91,7 @@ def rollout(board: Board, state, bot_identity: int, last_good_replies):
         if next_state is None:
             break
         state = next_state
-        action_used.append((new_action, prev_action_lookup[1]))
+        action_used.append((new_action, board.current_player(state)))
         prev_action = new_action
 
     we_won = is_win(board, state, bot_identity)
@@ -105,7 +105,7 @@ def rollout(board: Board, state, bot_identity: int, last_good_replies):
         if len(action_used) == 0:
             break
         preceding_action = action_used.pop()
-        last_good_replies[preceding_action] = curr_action[0]
+        last_good_replies[preceding_action[0]] = curr_action[0]
 
     return state, we_won
 
@@ -183,7 +183,6 @@ def think(board: Board, current_state):
     bot_identity = board.current_player(current_state)  # 1 or 2
     root_node = MCTSNode(parent=None, parent_action=None, action_list=board.legal_actions(current_state))
 
-    last_good_replies = {}
     for _ in range(num_nodes):
         state = current_state
         node = root_node
@@ -192,7 +191,7 @@ def think(board: Board, current_state):
         node, state = traverse_nodes(node, board, state, bot_identity)
         node, state = expand_leaf(node, board, state)
 
-        rollout_state, win = rollout(board, state, bot_identity, last_good_replies)
+        rollout_state, win = rollout(board, state, bot_identity)
         backpropagate(node, win)
 
     # Return an action, typically the most frequently used action (from the root) or the action with the best
